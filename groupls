@@ -1,0 +1,57 @@
+#!/usr/bin/python
+
+import sys
+
+if not sys.argv or sys.argv[0] == '--help':
+   print """usage: groupls group [...]
+Print a list of users in the specified group(s)."""
+
+def readfile(p):
+   h = open(p, 'r')
+   c = h.read()
+   h.close()
+   return c
+
+f_group = readfile('/etc/group')
+f_passwd = readfile('/etc/passwd')
+
+userids_users = {}
+users_primary_groups = {}
+for line in f_passwd.splitlines():
+   line=line.strip().partition('#')[0]
+   parts = line.split(':')
+   if len(parts) >= 4:
+      user = parts[0]
+      userid = int(parts[2])
+      group = int(parts[3])
+      users_primary_groups[userid] = group
+      userids_users[userid] = user
+
+groupids_users={}
+groups_groupids={}
+
+for line in f_group.splitlines():
+   line=line.strip().partition('#')[0]
+   parts = line.split(':')
+   if len(parts) >= 4:
+      groupname = parts[0]
+      groupid = int(parts[2])
+      groups_groupids[groupname] = groupid
+      users_in_group = [_.strip() for _ in parts[3].strip().split(',') if len(_)]
+      groupids_users[groupname] = users_in_group
+
+primary_groups_users = {}
+for user, pgroup in users_primary_groups.items():
+   if user not in primary_groups_users:
+      primary_groups_users[user] = []
+   primary_groups_users[user].append(user)
+
+for group_requested in sys.argv[1:]:
+   print '%s:' % group_requested
+   print '\tprimary:'
+   for user in primary_groups_users.get(group_requested, []):
+      print user
+   print '\t'
+   print '\tadditional:'
+   for user in groupids_users.get(group_requested, []):
+      print '\t\t%s' % user
